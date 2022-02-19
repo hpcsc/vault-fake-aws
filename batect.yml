@@ -21,6 +21,8 @@ containers:
       VAULT_ADDR: http://127.0.0.1:8200
       VAULT_TOKEN: root
       VAULT_DEV_ROOT_TOKEN_ID: root
+      ROLE_NAME: cli
+      AWS_ROLE_NAME: my-aws-role
     working_directory: /app
 
   cli:
@@ -32,6 +34,7 @@ containers:
     environment:
       VAULT_ADDR: http://vault:8200
       VAULT_TOKEN: root
+      ROLE_NAME: cli
     working_directory: /app
 
 tasks:
@@ -40,11 +43,11 @@ tasks:
       - vault
     run:
       container: cli
-      command: vault agent -log-level=trace -config=/app/templates/aws-kv1.hcl
+      command: /app/scripts/render.sh aws-kv1.hcl
 
   render-moto:
     dependencies:
       - vault
     run:
       container: cli
-      command: vault agent -log-level=trace -config=/app/templates/aws-moto.hcl
+      command: /app/scripts/render.sh aws-moto.hcl

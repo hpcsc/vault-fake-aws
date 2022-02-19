@@ -38,43 +38,32 @@ setup_approle_auth() {
     fi
 
     vault policy write ${role_name} - <<EOF
-path "awskv/sts/${aws_role_name}" {
+path "awskv/sts/${AWS_ROLE_NAME}" {
     capabilities = ["read"]
 }
-path "awsmoto/sts/${aws_role_name}" {
+path "awsmoto/sts/${AWS_ROLE_NAME}" {
     capabilities = ["read", "update"]
 }
 EOF
 
-    vault write auth/approle/role/${role_name} \
+    vault write auth/approle/role/${ROLE_NAME} \
         secret_id_ttl=10m \
         token_num_uses=10 \
         token_ttl=20m \
         token_max_ttl=30m \
         secret_id_num_uses=40 \
-        policies=${role_name}
-}
-
-write_approle_credentials() {
-    local role_name=$1
-
-    vault read -field=role_id auth/approle/role/${role_name}/role-id > /app/tmp/role-id
-    vault write -field=secret_id -f auth/approle/role/${role_name}/secret-id > /app/tmp/secret-id
+        policies=${ROLE_NAME}
 }
 
 setup_fake_aws_by_kv1() {
-    local aws_role_name=$1
-
     if [ -z "$(vault secrets list | grep awskv)" ]; then
         vault secrets enable -version=1 -path=awskv kv
     fi
 
-    vault kv put awskv/sts/${aws_role_name} access_key=test secret_key=test security_token=test
+    vault kv put awskv/sts/${AWS_ROLE_NAME} access_key=test secret_key=test security_token=test
 }
 
 setup_fake_aws_by_moto() {
-    local aws_role_name=$1
-
     if [ -z "$(vault secrets list | grep awsmoto)" ]; then
         vault secrets enable -path=awsmoto aws
     fi
@@ -86,13 +75,12 @@ setup_fake_aws_by_moto() {
         iam_endpoint=http://moto:5000 \
         sts_endpoint=http://moto:5000
 
-    vault write awsmoto/roles/${aws_role_name} \
-        role_arns=arn:aws:iam::000000000000:role/${aws_role_name} \
+    vault write awsmoto/roles/${AWS_ROLE_NAME} \
+        role_arns=arn:aws:iam::000000000000:role/${AWS_ROLE_NAME} \
         credential_type=assumed_role
 }
 
 wait_for vault "vault status"
 setup_approle_auth cli my-aws-role
-write_approle_credentials cli
 setup_fake_aws_by_kv1 my-aws-role
 setup_fake_aws_by_moto my-aws-role
