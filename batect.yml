@@ -1,0 +1,50 @@
+project_name: vault-fake-aws
+
+containers:
+  moto:
+    image: motoserver/moto:3.0.3
+    command: -H 0.0.0.0
+
+  vault:
+    image: vault:1.9.3
+    dependencies:
+      - moto
+    setup_commands:
+      - command: /app/scripts/setup.sh
+    volumes:
+      - local: .
+        container: /app
+        options: cached
+    ports:
+      - 8200:8200
+    environment:
+      VAULT_ADDR: http://127.0.0.1:8200
+      VAULT_TOKEN: root
+      VAULT_DEV_ROOT_TOKEN_ID: root
+    working_directory: /app
+
+  cli:
+    image: vault:1.9.3
+    volumes:
+      - local: .
+        container: /app
+        options: cached
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: root
+    working_directory: /app
+
+tasks:
+  render-kv1:
+    dependencies:
+      - vault
+    run:
+      container: cli
+      command: vault agent -log-level=trace -config=/app/templates/aws-kv1.hcl
+
+  render-moto:
+    dependencies:
+      - vault
+    run:
+      container: cli
+      command: vault agent -log-level=trace -config=/app/templates/aws-moto.hcl
